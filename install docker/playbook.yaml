@@ -1,0 +1,105 @@
+---
+- name: Set up Docker's apt repository
+  hosts: ubuntu_user
+  vars: 
+    deb_architecture: {
+      "aarch64": "arm64",
+      "x86_64": "amd64"
+    }
+  tasks:
+# # Add Docker's official GPG key:
+# sudo apt-get update
+# done via update_cache: true
+# sudo apt-get install ca-certificates curl
+# done via pkg array
+    - name: sudo update & install
+      ansible.builtin.apt:
+        update_cache: true
+        pkg: 
+          - ca-certificates
+          - curl
+      become: true
+      register: result
+    
+# sudo install -m 0755 -d /etc/apt/keyrings
+# command creates directory and set priveleges
+    - name: sudo install 
+      ansible.builtin.file:
+        dest: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+      become: true
+      register: result
+
+# sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+# -f - fail silently
+# -s - silent mode
+# -S - show error
+# -L - location
+# -o - output
+# sudo chmod a+r /etc/apt/keyrings/docker.asc
+# done via mode
+    - name: sudo curl
+      ansible.builtin.get_url:
+        mode: 'a+r'
+        dest: /etc/apt/keyrings/docker.asc
+        force: true
+        url: https://download.docker.com/linux/ubuntu/gpg
+      become: true
+      register: result
+
+
+# # Add the repository to Apt sources:
+# echo \
+#   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+#   $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+#   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    - name: add repository to Apt sources
+      ansible.builtin.lineinfile:
+        path: /etc/apt/sources.list.d/docker.list
+        create: true
+        line: >
+          deb [arch={{ [ansible_facts['architecture']] | map('extract', deb_architecture) | first}} signed-by=/etc/apt/keyrings/docker.asc]
+          https://download.docker.com/linux/ubuntu
+          {{ ansible_facts['lsb']['codename'] }} stable
+      become: true
+      register: result
+
+# sudo apt-get update
+    - name: sudo update
+      ansible.builtin.apt:
+        update_cache: true
+      become: true
+      register: result
+
+- name: Install docker packages
+  hosts: ubuntu_user
+  tasks:
+# # Install the Docker packages
+# sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    - name: install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      ansible.builtin.apt:
+        pkg: 
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+      become: true
+      register: result
+
+- name: Set up docker group
+  hosts: ubuntu_user
+  tasks:
+    - name: create docker group
+      ansible.builtin.group:
+        name: docker
+      become: true
+
+    - name: assign docker group to user 'user'
+      ansible.builtin.user:
+        name: user
+        append: true
+        groups: 
+          - docker
+      become: true

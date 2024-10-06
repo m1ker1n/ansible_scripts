@@ -1,0 +1,27 @@
+---
+- name: Setup user
+  hosts: ubuntu_root
+  tasks:
+    - name: Add user 'user'
+      ansible.builtin.user:
+        name: user
+        create_home: true
+        groups: sudo
+        password: "{{ 'secret' | password_hash('sha512') }}"
+        shell: /bin/bash
+        state: present
+      register: result
+    
+    - name: Debug result
+      ansible.builtin.debug:
+        var: result
+
+    - name: Add ssh key to authorized
+      ansible.posix.authorized_key:
+        user: user
+        key: secret
+      register: result
+
+    - name: Debug result
+      ansible.builtin.debug:
+        var: result

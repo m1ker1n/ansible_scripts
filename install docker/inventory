@@ -1,0 +1,1 @@
+ubuntu_user  ansible_connection=ssh   ansible_host=secret    ansible_port=22    ansible_user=user  ansible_ssh_private_key_file=secret
